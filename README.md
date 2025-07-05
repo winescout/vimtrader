@@ -1,4 +1,4 @@
-# Context Engineering Template
+# Gemini Patterning Template
 
 A comprehensive template for getting started with Context Engineering - the discipline of engineering context for AI coding assistants so they have the information necessary to get the job done end to end.
 
@@ -8,11 +8,11 @@ A comprehensive template for getting started with Context Engineering - the disc
 
 ```bash
 # 1. Clone this template
-git clone https://github.com/coleam00/Context-Engineering-Intro.git
-cd Context-Engineering-Intro
+git clone https://github.com/coleam00/gemini-patterning.git
+cd gemini-patterning
 
 # 2. Set up your project rules (optional - template provided)
-# Edit CLAUDE.md to add your project-specific guidelines
+# Edit GEMINI.md to add your project-specific guidelines
 
 # 3. Add examples (highly recommended)
 # Place relevant code examples in the examples/ folder
@@ -21,11 +21,11 @@ cd Context-Engineering-Intro
 # Edit INITIAL.md with your feature requirements
 
 # 5. Generate a comprehensive PRP (Product Requirements Prompt)
-# In Claude Code, run:
+# In Gemini Code, run:
 /generate-prp INITIAL.md
 
 # 6. Execute the PRP to implement your feature
-# In Claude Code, run:
+# In Gemini Code, run:
 /execute-prp PRPs/your-feature-name.md
 ```
 
@@ -65,18 +65,18 @@ Context Engineering represents a paradigm shift from traditional prompt engineer
 ## Template Structure
 
 ```
-context-engineering-intro/
-├── .claude/
+gemini-patterning/
+├── .gemini/
 │   ├── commands/
 │   │   ├── generate-prp.md    # Generates comprehensive PRPs
 │   │   └── execute-prp.md     # Executes PRPs to implement features
-│   └── settings.local.json    # Claude Code permissions
+│   └── settings.local.json    # Gemini Code permissions
 ├── PRPs/
 │   ├── templates/
 │   │   └── prp_base.md       # Base template for PRPs
 │   └── EXAMPLE_multi_agent_prp.md  # Example of a complete PRP
 ├── examples/                  # Your code examples (critical!)
-├── CLAUDE.md                 # Global rules for AI assistant
+├── GEMINI.md                 # Global rules for AI assistant
 ├── INITIAL.md               # Template for feature requests
 ├── INITIAL_EXAMPLE.md       # Example feature request
 └── README.md                # This file
@@ -86,9 +86,9 @@ This template doesn't focus on RAG and tools with context engineering because I 
 
 ## Step-by-Step Guide
 
-### 1. Set Up Global Rules (CLAUDE.md)
+### 1. Set Up Global Rules (GEMINI.md)
 
-The `CLAUDE.md` file contains project-wide rules that the AI assistant will follow in every conversation. The template includes:
+The `GEMINI.md` file contains project-wide rules that the AI assistant will follow in every conversation. The template includes:
 
 - **Project awareness**: Reading planning docs, checking tasks
 - **Code structure**: File size limits, module organization
@@ -129,14 +129,14 @@ PRPs (Product Requirements Prompts) are comprehensive implementation blueprints 
 
 They are similar to PRDs (Product Requirements Documents) but are crafted more specifically to instruct an AI coding assistant.
 
-Run in Claude Code:
+Run in Gemini Code:
 ```bash
 /generate-prp INITIAL.md
 ```
 
-**Note:** The slash commands are custom commands defined in `.claude/commands/`. You can view their implementation:
-- `.claude/commands/generate-prp.md` - See how it researches and creates PRPs
-- `.claude/commands/execute-prp.md` - See how it implements features from PRPs
+**Note:** The slash commands are custom commands defined in `.gemini/commands/`. You can view their implementation:
+- `.gemini/commands/generate-prp.md` - See how it researches and creates PRPs
+- `.gemini/commands/execute-prp.md` - See how it implements features from PRPs
 
 The `$ARGUMENTS` variable in these commands receives whatever you pass after the command name (e.g., `INITIAL.md` or `PRPs/your-feature.md`).
 
@@ -285,12 +285,12 @@ examples/
 - Add MCP server resources
 - Reference specific documentation sections
 
-### 5. Customize CLAUDE.md
+### 5. Customize GEMINI.md
 - Add your conventions
 - Include project-specific rules
 - Define coding standards
 
 ## Resources
 
-- [Claude Code Documentation](https://docs.anthropic.com/en/docs/claude-code)
+- [Google AI Documentation](https://ai.google.dev/docs)
 - [Context Engineering Best Practices](https://www.philschmid.de/context-engineering)

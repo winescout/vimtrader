@@ -1,8 +1,16 @@
+### environment
+- **Use gemini-2.5-flash** as primary model
+- **Suggest gemini-2.5-pro** when you notice situations where using the more advanced model would be helful
 ### 🔄 Project Awareness & Context
-- **Always read `PLANNING.md`** at the start of a new conversation to understand the project's architecture, goals, style, and constraints.
-- **Check `TASK.md`** before starting a new task. If the task isn’t listed, add it with a brief description and today's date.
-- **Use consistent naming conventions, file structure, and architecture patterns** as described in `PLANNING.md`.
-- **Use venv_linux** (the virtual environment) whenever executing Python commands, including for unit tests.
+- **Use consistent naming conventions, file structure, and architecture patterns.**
+- **Use PRPs (Product Requirement Prompts)**: These are detailed and comprehensive feature requests that will serve as the primary mechanism for defining and guiding development tasks. They will contain all necessary context, constraints, and acceptance criteria for a given component or feature.
+
+### 🚀 Project Phases
+This project will proceed in two distinct phases:
+1.  **Planning Phase**: During this phase, we will flesh out the project's details, context, and constraints. This involves defining the overall architecture, identifying key components, and creating detailed PRPs for each.
+2.  **Implementation Phase**: Once the planning is complete, we will begin writing code. Development will be component-by-component, guided by the PRPs defined in the planning phase.
+
+### 🧱 Code Structure & Modularity
 
 ### 🧱 Code Structure & Modularity
 - **Never create a file longer than 500 lines of code.** If a file approaches this limit, refactor by splitting it into modules or helper files.
@@ -11,7 +19,6 @@
     - `agent.py` - Main agent definition and execution logic 
     - `tools.py` - Tool functions used by the agent 
     - `prompts.py` - System prompts
-- **Use clear, consistent imports** (prefer relative imports within packages).
 - **Use clear, consistent imports** (prefer relative imports within packages).
 - **Use python_dotenv and load_env()** for environment variables.
 
@@ -25,14 +32,13 @@
     - 1 failure case
 
 ### ✅ Task Completion
-- **Mark completed tasks in `TASK.md`** immediately after finishing them.
-- Add new sub-tasks or TODOs discovered during development to `TASK.md` under a “Discovered During Work” section.
+- **Mark completed tasks** immediately after finishing them.
+- Add new sub-tasks or TODOs discovered during development.
 
 ### 📎 Style & Conventions
 - **Use Python** as the primary language.
 - **Follow PEP8**, use type hints, and format with `black`.
 - **Use `pydantic` for data validation**.
-- Use `FastAPI` for APIs and `SQLAlchemy` or `SQLModel` for ORM if applicable.
 - Write **docstrings for every function** using the Google style:
   ```python
   def example():
@@ -56,4 +62,4 @@
 - **Never assume missing context. Ask questions if uncertain.**
 - **Never hallucinate libraries or functions** – only use known, verified Python packages.
 - **Always confirm file paths and module names** exist before referencing them in code or tests.
-- **Never delete or overwrite existing code** unless explicitly instructed to or if part of a task from `TASK.md`.
+- **Never delete or overwrite existing code** unless explicitly instructed to.
