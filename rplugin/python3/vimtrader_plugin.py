@@ -156,3 +156,82 @@ class VimTraderPlugin:
             return "\n".join(info)
         except Exception as e:
             return f"Error getting Python info: {str(e)}"
+    
+    @pynvim.function('VimtraderAdjustCandle', sync=True)
+    def adjust_candle(self, args):
+        """
+        Adjust a specific value (High, Low, Open, Close) for a candle.
+        
+        Args:
+            args: List containing [candle_index, value_type, direction]
+                  candle_index: int (0-based index of candle)
+                  value_type: str ('high', 'low', 'open', 'close')
+                  direction: int (1 for increase, -1 for decrease)
+        
+        Returns:
+            str: Updated ASCII chart with modified data
+        """
+        try:
+            if len(args) != 3:
+                return "Error: Expected 3 arguments (candle_index, value_type, direction)"
+            
+            candle_index, value_type, direction = args
+            
+            # Validate inputs
+            if not isinstance(candle_index, int) or candle_index < 0:
+                return f"Error: Invalid candle index: {candle_index}"
+            
+            if value_type not in ['high', 'low', 'open', 'close']:
+                return f"Error: Invalid value type: {value_type}"
+            
+            if direction not in [1, -1]:
+                return f"Error: Invalid direction: {direction}"
+            
+            # Ensure we have a DataFrame to work with
+            if self.current_dataframe is None:
+                # Generate sample data if none exists
+                self.get_sample_chart([])
+            
+            # Make a copy of the DataFrame to avoid modifying the original
+            df = self.current_dataframe.copy()
+            
+            # Check bounds
+            if candle_index >= len(df):
+                return f"Error: Candle index {candle_index} out of range (max: {len(df)-1})"
+            
+            # Calculate adjustment amount (using 1.0 as default resolution)
+            adjustment = 1.0 * direction
+            
+            # Apply the adjustment
+            column_name = value_type.capitalize()  # 'high' -> 'High'
+            current_value = df.iloc[candle_index][column_name]
+            new_value = current_value + adjustment
+            
+            # Basic validation to prevent invalid OHLC relationships
+            if value_type == 'high':
+                # High should be >= max(Open, Close) and >= Low
+                min_high = max(df.iloc[candle_index]['Open'], 
+                              df.iloc[candle_index]['Close'], 
+                              df.iloc[candle_index]['Low'])
+                new_value = max(new_value, min_high)
+            elif value_type == 'low':
+                # Low should be <= min(Open, Close) and <= High
+                max_low = min(df.iloc[candle_index]['Open'], 
+                             df.iloc[candle_index]['Close'], 
+                             df.iloc[candle_index]['High'])
+                new_value = min(new_value, max_low)
+            
+            # Update the DataFrame
+            df.iloc[candle_index, df.columns.get_loc(column_name)] = new_value
+            
+            # Update the stored DataFrame
+            self.current_dataframe = df
+            
+            # Re-render the chart
+            from vimtrader.chart import render_chart
+            chart_string = render_chart(df)
+            
+            return chart_string
+            
+        except Exception as e:
+            return f"Error adjusting candle: {str(e)}"

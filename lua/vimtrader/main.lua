@@ -33,7 +33,21 @@ function M.open_chart(df_variable_name)
   end
 
   -- Set the buffer content with the received chart string
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.split(chart_string, '\n'))
+  local chart_lines = vim.split(chart_string, '\n')
+  
+  -- Add key map help at the bottom
+  local help_lines = {
+    "",
+    "Navigation: h/l=candles, j/k=vertical | Editing: H/J=high, K/L=low, O/P=open, C/V=close",
+    "Other: q/ESC=quit, r=refresh, i=info"
+  }
+  
+  -- Combine chart and help lines
+  for _, line in ipairs(help_lines) do
+    table.insert(chart_lines, line)
+  end
+  
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, chart_lines)
   
   -- Set up syntax highlighting for chart elements
   M.setup_chart_highlighting(buf)
@@ -41,8 +55,8 @@ function M.open_chart(df_variable_name)
   local win = vim.api.nvim_open_win(buf, true, {
     relative = 'editor',
     width = 80,
-    height = 20,
-    row = math.floor((vim.o.lines - 20) / 2),
+    height = 23,  -- Increased height for help lines
+    row = math.floor((vim.o.lines - 23) / 2),
     col = math.floor((vim.o.columns - 80) / 2),
     border = 'single',
   })
@@ -62,6 +76,16 @@ function M.open_chart(df_variable_name)
     vim.keymap.set('n', 'l', function() M.move_to_candle(1) end, opts)   -- Next candle
     vim.keymap.set('n', 'j', function() M.move_cursor_vertical(1) end, opts)   -- Move down
     vim.keymap.set('n', 'k', function() M.move_cursor_vertical(-1) end, opts)  -- Move up
+    
+    -- Candle manipulation key bindings
+    vim.keymap.set('n', 'H', function() M.adjust_candle_value('high', 1) end, opts)    -- Increase High
+    vim.keymap.set('n', 'J', function() M.adjust_candle_value('high', -1) end, opts)   -- Decrease High
+    vim.keymap.set('n', 'K', function() M.adjust_candle_value('low', 1) end, opts)     -- Increase Low
+    vim.keymap.set('n', 'L', function() M.adjust_candle_value('low', -1) end, opts)    -- Decrease Low
+    vim.keymap.set('n', 'O', function() M.adjust_candle_value('open', 1) end, opts)    -- Increase Open
+    vim.keymap.set('n', 'P', function() M.adjust_candle_value('open', -1) end, opts)   -- Decrease Open
+    vim.keymap.set('n', 'C', function() M.adjust_candle_value('close', 1) end, opts)   -- Increase Close
+    vim.keymap.set('n', 'V', function() M.adjust_candle_value('close', -1) end, opts)  -- Decrease Close
   end
   
   setup_keybindings()
@@ -182,6 +206,40 @@ function M.update_cursor_position(buf, win)
     if vim.api.nvim_win_is_valid(current_win) then
       vim.api.nvim_win_set_cursor(current_win, {row + 1, col})
     end
+  end
+end
+
+-- Candle manipulation functions
+function M.adjust_candle_value(value_type, direction)
+  -- Adjust High, Low, Open, or Close value for current candle
+  -- value_type: 'high', 'low', 'open', 'close'
+  -- direction: 1 for increase, -1 for decrease
+  
+  local ok, result = pcall(vim.fn.VimtraderAdjustCandle, chart_state.current_candle, value_type, direction)
+  
+  if ok and type(result) == "string" then
+    -- Update the chart display with new data
+    local buf = vim.api.nvim_get_current_buf()
+    local chart_lines = vim.split(result, '\n')
+    
+    -- Add key map help at the bottom
+    local help_lines = {
+      "",
+      "Navigation: h/l=candles, j/k=vertical | Editing: H/J=high, K/L=low, O/P=open, C/V=close",
+      "Other: q/ESC=quit, r=refresh, i=info"
+    }
+    
+    -- Combine chart and help lines
+    for _, line in ipairs(help_lines) do
+      table.insert(chart_lines, line)
+    end
+    
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, chart_lines)
+    M.setup_chart_highlighting(buf)
+    M.update_cursor_position()  -- Maintain cursor position after update
+  else
+    local error_msg = "Error adjusting candle: " .. tostring(result)
+    vim.notify(error_msg, vim.log.levels.ERROR)
   end
 end
 
