@@ -32,6 +32,7 @@ This project will proceed in two distinct phases:
     - 1 failure case
 
 ### ✅ Task Completion
+- **After completing a task and ensuring all tests pass, perform a git commit.**
 - **Mark completed tasks** immediately after finishing them.
 - Add new sub-tasks or TODOs discovered during development.
 
@@ -59,6 +60,7 @@ This project will proceed in two distinct phases:
 - When writing complex logic, **add an inline `# Reason:` comment** explaining the why, not just the what.
 
 ### 🧠 AI Behavior Rules
+- **Do not automatically start a new task.** Instead, present the task list and suggest the next step.
 - **Never assume missing context. Ask questions if uncertain.**
 - **Never hallucinate libraries or functions** – only use known, verified Python packages.
 - **Always confirm file paths and module names** exist before referencing them in code or tests.

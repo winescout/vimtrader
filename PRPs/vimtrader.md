@@ -64,6 +64,8 @@ A user, while working in a Python script, will place their cursor on a pandas Da
 ### Desired Codebase tree with files to be added and responsibility of file
 ```bash
 .
+├── examples/
+│   └── test_dataframe.py # Manual testing file for the plugin
 ├── lua/
 │   └── vimtrader/
 │       ├── init.lua  # Neovim plugin entrypoint
@@ -107,11 +109,11 @@ Examples:
 
 ```yaml
 Task 1: Setup the project structure:
-  - CREATE the directories and empty files defined in the Desired Codebase tree section.
+  - [x] CREATE the directories and empty files defined in the Desired Codebase tree section.
 
 Task 2: Implement the chart rendering:
-  - CREATE the `chart.py` module.
-  - IMPLEMENT the logic to take a pandas DataFrame and render it as an ASCII chart.
+  - [x] CREATE the `chart.py` module.
+  - [x] IMPLEMENT the logic to take a pandas DataFrame and render it as an ASCII chart.
 
 Task 3: Implement the editor:
   - CREATE the `editor.py` module.
