@@ -1,6 +1,15 @@
 local M = {}
 local vim = vim
 
+-- Chart state for interactive editing
+local chart_state = {
+  current_candle = 0,    -- Current candle index (0-based)
+  current_row = 0,       -- Current row position in chart
+  chart_height = 10,     -- Height of the chart
+  num_candles = 0,       -- Total number of candles
+  candle_width = 3,      -- Width of each candle in characters
+}
+
 function M.open_chart(df_variable_name)
   -- This function will be called from Neovim
   -- It will eventually get the DataFrame from the Python process
@@ -47,9 +56,23 @@ function M.open_chart(df_variable_name)
     vim.keymap.set('n', '<ESC>', '<cmd>close<cr>', opts)
     vim.keymap.set('n', 'r', function() M.refresh_chart() end, opts)
     vim.keymap.set('n', 'i', function() M.show_python_info() end, opts)
+    
+    -- Interactive navigation - candle-by-candle movement
+    vim.keymap.set('n', 'h', function() M.move_to_candle(-1) end, opts)  -- Previous candle
+    vim.keymap.set('n', 'l', function() M.move_to_candle(1) end, opts)   -- Next candle
+    vim.keymap.set('n', 'j', function() M.move_cursor_vertical(1) end, opts)   -- Move down
+    vim.keymap.set('n', 'k', function() M.move_cursor_vertical(-1) end, opts)  -- Move up
   end
   
   setup_keybindings()
+  
+  -- Initialize chart state
+  chart_state.num_candles = 10  -- Sample data has 10 candles
+  chart_state.current_candle = 0
+  chart_state.current_row = 0
+  
+  -- Position cursor at first candle
+  M.update_cursor_position(buf, win)
   
   -- Add a test: manually color the first few characters to verify highlighting works
   vim.schedule(function()
@@ -112,6 +135,54 @@ function M.setup_chart_highlighting(buf)
   vim.api.nvim_buf_call(buf, function()
     vim.cmd('syntax clear')
   end)
+end
+
+-- Interactive navigation functions
+function M.move_to_candle(direction)
+  -- Move to previous (-1) or next (1) candle
+  local new_candle = chart_state.current_candle + direction
+  
+  -- Bounds checking
+  if new_candle < 0 then
+    new_candle = 0
+  elseif new_candle >= chart_state.num_candles then
+    new_candle = chart_state.num_candles - 1
+  end
+  
+  chart_state.current_candle = new_candle
+  M.update_cursor_position()
+end
+
+function M.move_cursor_vertical(direction)
+  -- Move cursor up (-1) or down (1)
+  local new_row = chart_state.current_row + direction
+  
+  -- Bounds checking
+  if new_row < 0 then
+    new_row = 0
+  elseif new_row >= chart_state.chart_height then
+    new_row = chart_state.chart_height - 1
+  end
+  
+  chart_state.current_row = new_row
+  M.update_cursor_position()
+end
+
+function M.update_cursor_position(buf, win)
+  -- Calculate cursor position based on current candle and row
+  local col = chart_state.current_candle * chart_state.candle_width + 1  -- Center of candle
+  local row = chart_state.current_row
+  
+  -- Set cursor position in the window
+  if win and vim.api.nvim_win_is_valid(win) then
+    vim.api.nvim_win_set_cursor(win, {row + 1, col})  -- Vim uses 1-based indexing
+  else
+    -- If no window provided, use current window
+    local current_win = vim.api.nvim_get_current_win()
+    if vim.api.nvim_win_is_valid(current_win) then
+      vim.api.nvim_win_set_cursor(current_win, {row + 1, col})
+    end
+  end
 end
 
 -- Remove the complex highlighting function since we're using syntax highlighting now
