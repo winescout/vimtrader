@@ -55,7 +55,9 @@ uv run pytest tests/ -v
 *** ULTRATHINK ABOUT THE PRP AND PLAN YOUR APPROACH THEN START WRITING THE PRP ***
 
 ## Output
-Save as: `PRPs/{feature-name}.md`
+Save as: `PRPs/{sequential-number}_{feature-name}_prp.md`
+
+**Note**: PRPs should be numbered sequentially (e.g., `001_`, `002_`, etc.) because they are intended to be executed in chronological order. Each PRP may depend on functionality or patterns established in previous PRPs.
 
 ## Quality Checklist
 - [ ] All necessary context included
