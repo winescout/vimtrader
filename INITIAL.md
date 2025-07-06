@@ -1,10 +1,10 @@
 ## FEATURE:
 
-[Insert your feature here]
+I want to explore representing OHLC candlesticks in a neovim environment using unicode characters.
 
 ## EXAMPLES:
 
-[Provide and explain examples that you have in the `examples/` folder]
+Neovim doesn't have graphics rendering ability, so we need to look at ascii art for examples of how to do this.
 
 ## DOCUMENTATION:
 
