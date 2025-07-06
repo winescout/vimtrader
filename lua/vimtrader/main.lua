@@ -38,7 +38,7 @@ function M.open_chart(df_variable_name)
   -- Add key map help at the bottom
   local help_lines = {
     "",
-    "Editing: H/J=high, K/L=low, O/P=open, C/V=close",
+    "H/J=high, K/L=low, O/P=open, C/V=close",
     "Other: q/ESC=quit, r=refresh, i=info"
   }
   
@@ -76,12 +76,6 @@ function M.open_chart(df_variable_name)
     vim.keymap.set('n', 'l', function() M.move_to_candle(1) end, opts)   -- Next candle
     vim.keymap.set('n', 'j', function() M.move_cursor_vertical(1) end, opts)   -- Move down
     vim.keymap.set('n', 'k', function() M.move_cursor_vertical(-1) end, opts)  -- Move up
-    
-    -- Arrow key aliases for navigation (for convenience)
-    vim.keymap.set('n', '<Left>', function() M.move_to_candle(-1) end, opts)   -- Previous candle
-    vim.keymap.set('n', '<Right>', function() M.move_to_candle(1) end, opts)   -- Next candle
-    vim.keymap.set('n', '<Down>', function() M.move_cursor_vertical(1) end, opts)   -- Move down
-    vim.keymap.set('n', '<Up>', function() M.move_cursor_vertical(-1) end, opts)    -- Move up
     
     -- Candle manipulation key bindings
     vim.keymap.set('n', 'H', function() M.adjust_candle_value('high', 1) end, opts)    -- Increase High
@@ -122,7 +116,7 @@ function M.refresh_chart()
     -- Add key map help at the bottom
     local help_lines = {
       "",
-      "Editing: H/J=high, K/L=low, O/P=open, C/V=close",
+      "H/J=high, K/L=low, O/P=open, C/V=close",
       "Other: q/ESC=quit, r=refresh, i=info"
     }
     
@@ -296,7 +290,7 @@ function M.adjust_candle_value(value_type, direction)
     -- Add key map help at the bottom
     local help_lines = {
       "",
-      "Editing: H/J=high, K/L=low, O/P=open, C/V=close",
+      "H/J=high, K/L=low, O/P=open, C/V=close",
       "Other: q/ESC=quit, r=refresh, i=info"
     }
     

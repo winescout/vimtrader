@@ -44,6 +44,7 @@ This project will proceed in two distinct phases:
 - **Use Python** as the primary language.
 - **Follow PEP8**, use type hints, and format with `black`.
 - **Use `pydantic` for data validation**.
+- **Prefer functional programming style** over object-oriented when possible. Use pure functions, avoid side effects, and favor immutable data structures.
 - Write **docstrings for every function** using the Google style:
   ```python
   def example():
