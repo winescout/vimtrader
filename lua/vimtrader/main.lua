@@ -111,8 +111,23 @@ function M.refresh_chart()
   local ok, chart_string = pcall(vim.fn.VimtraderGetSampleChart)
   if ok and type(chart_string) == "string" then
     local buf = vim.api.nvim_get_current_buf()
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.split(chart_string, '\n'))
+    local chart_lines = vim.split(chart_string, '\n')
+    
+    -- Add key map help at the bottom
+    local help_lines = {
+      "",
+      "Navigation: h/l=candles, j/k=vertical | Editing: H/J=high, K/L=low, O/P=open, C/V=close",
+      "Other: q/ESC=quit, r=refresh, i=info"
+    }
+    
+    -- Combine chart and help lines
+    for _, line in ipairs(help_lines) do
+      table.insert(chart_lines, line)
+    end
+    
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, chart_lines)
     M.setup_chart_highlighting(buf)  -- Re-apply highlighting after refresh
+    M.update_cursor_position(buf)    -- Re-apply cursor position and OHLC legend
   else
     local error_msg = "Error refreshing chart: " .. tostring(chart_string)
     if type(chart_string) ~= "string" then
@@ -159,6 +174,9 @@ function M.setup_chart_highlighting(buf)
   vim.api.nvim_buf_call(buf, function()
     vim.cmd('syntax clear')
   end)
+  
+  -- Define highlight group for OHLC legend
+  vim.cmd('highlight VimtraderOHLCLegend guifg=#00ff00 guibg=NONE ctermfg=green ctermbg=NONE')
 end
 
 -- Interactive navigation functions
@@ -174,7 +192,8 @@ function M.move_to_candle(direction)
   end
   
   chart_state.current_candle = new_candle
-  M.update_cursor_position()
+  local buf = vim.api.nvim_get_current_buf()
+  M.update_cursor_position(buf)
 end
 
 function M.move_cursor_vertical(direction)
@@ -189,7 +208,8 @@ function M.move_cursor_vertical(direction)
   end
   
   chart_state.current_row = new_row
-  M.update_cursor_position()
+  local buf = vim.api.nvim_get_current_buf()
+  M.update_cursor_position(buf)
 end
 
 function M.update_cursor_position(buf, win)
@@ -205,6 +225,51 @@ function M.update_cursor_position(buf, win)
     local current_win = vim.api.nvim_get_current_win()
     if vim.api.nvim_win_is_valid(current_win) then
       vim.api.nvim_win_set_cursor(current_win, {row + 1, col})
+    end
+  end
+  
+  -- Add OHLC legend for current candle
+  M.update_ohlc_legend(buf)
+end
+
+function M.update_ohlc_legend(buf)
+  -- Validate buffer parameter
+  if not buf or not vim.api.nvim_buf_is_valid(buf) then
+    buf = vim.api.nvim_get_current_buf()
+  end
+  
+  -- Get OHLC values for current candle
+  local ok, ohlc_data = pcall(vim.fn.VimtraderGetOHLCValues, chart_state.current_candle)
+  
+  if ok and type(ohlc_data) == "string" and not ohlc_data:match("^Error:") then
+    -- Parse OHLC data (format: "open:xxx,high:xxx,low:xxx,close:xxx")
+    local open, high, low, close = ohlc_data:match("open:([^,]+),high:([^,]+),low:([^,]+),close:([^,]+)")
+    
+    if open and high and low and close then
+      -- Create namespace for OHLC legend
+      local ns_id = vim.api.nvim_create_namespace('vimtrader_ohlc_legend')
+      
+      -- Clear existing legend
+      vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
+      
+      -- Format the legend text
+      local legend_text = string.format("[o:%.1f h:%.1f l:%.1f c:%.1f]", 
+                                       tonumber(open) or 0, 
+                                       tonumber(high) or 0, 
+                                       tonumber(low) or 0, 
+                                       tonumber(close) or 0)
+      
+      -- Position legend in bottom right of chart area (around row 9, right-aligned)
+      local legend_row = 9  -- Near bottom of 10-row chart
+      local chart_width = 30  -- Approximate chart width
+      local legend_col = math.max(0, chart_width - string.len(legend_text))
+      
+      -- Add virtual text showing OHLC legend
+      vim.api.nvim_buf_set_extmark(buf, ns_id, legend_row, legend_col, {
+        virt_text = {{legend_text, 'VimtraderOHLCLegend'}},
+        virt_text_pos = 'overlay',
+        priority = 150
+      })
     end
   end
 end
@@ -236,7 +301,7 @@ function M.adjust_candle_value(value_type, direction)
     
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, chart_lines)
     M.setup_chart_highlighting(buf)
-    M.update_cursor_position()  -- Maintain cursor position after update
+    M.update_cursor_position(buf)  -- Maintain cursor position and update legend after update
   else
     local error_msg = "Error adjusting candle: " .. tostring(result)
     vim.notify(error_msg, vim.log.levels.ERROR)

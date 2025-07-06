@@ -235,3 +235,119 @@ class VimTraderPlugin:
             
         except Exception as e:
             return f"Error adjusting candle: {str(e)}"
+    
+    @pynvim.function('VimtraderGetPriceAtPosition', sync=True)
+    def get_price_at_position(self, args):
+        """
+        Get the price value at a specific candle and chart position.
+        
+        Args:
+            args: List containing [candle_index, row_position]
+                  candle_index: int (0-based index of candle)
+                  row_position: int (0-based row position in chart)
+        
+        Returns:
+            str: Format "value_type:price" (e.g., "high:115.5")
+        """
+        try:
+            if len(args) != 2:
+                return "Error: Expected 2 arguments (candle_index, row_position)"
+            
+            candle_index, row_position = args
+            
+            # Validate inputs
+            if not isinstance(candle_index, int) or candle_index < 0:
+                return f"Error: Invalid candle index: {candle_index}"
+            
+            if not isinstance(row_position, int) or row_position < 0:
+                return f"Error: Invalid row position: {row_position}"
+            
+            # Ensure we have a DataFrame to work with
+            if self.current_dataframe is None:
+                return "Error: No data available"
+            
+            df = self.current_dataframe
+            
+            # Check bounds
+            if candle_index >= len(df):
+                return f"Error: Candle index {candle_index} out of range"
+            
+            # Get OHLC values for this candle
+            candle_data = df.iloc[candle_index]
+            open_price = candle_data['Open']
+            high_price = candle_data['High']
+            low_price = candle_data['Low']
+            close_price = candle_data['Close']
+            
+            # Calculate chart parameters (matching chart.py)
+            chart_height = 10
+            min_price = df['Low'].min()
+            max_price = df['High'].max()
+            
+            if max_price == min_price:
+                return "close:100.0"  # Fallback for flat data
+            
+            # Convert row position to price (inverse of price_to_row in chart.py)
+            normalized_position = (chart_height - 1 - row_position) / (chart_height - 1)
+            cursor_price = min_price + normalized_position * (max_price - min_price)
+            
+            # Determine which OHLC value is closest to cursor position
+            price_distances = {
+                'high': abs(cursor_price - high_price),
+                'low': abs(cursor_price - low_price),
+                'open': abs(cursor_price - open_price),
+                'close': abs(cursor_price - close_price)
+            }
+            
+            # Find the closest value
+            closest_type = min(price_distances.keys(), key=lambda k: price_distances[k])
+            closest_price = candle_data[closest_type.capitalize()]
+            
+            return f"{closest_type}:{closest_price:.1f}"
+            
+        except Exception as e:
+            return f"Error getting price at position: {str(e)}"
+    
+    @pynvim.function('VimtraderGetOHLCValues', sync=True)
+    def get_ohlc_values(self, args):
+        """
+        Get OHLC values for a specific candle.
+        
+        Args:
+            args: List containing [candle_index]
+                  candle_index: int (0-based index of candle)
+        
+        Returns:
+            str: Format "open:xxx,high:xxx,low:xxx,close:xxx"
+        """
+        try:
+            if len(args) != 1:
+                return "Error: Expected 1 argument (candle_index)"
+            
+            candle_index = args[0]
+            
+            # Validate inputs
+            if not isinstance(candle_index, int) or candle_index < 0:
+                return f"Error: Invalid candle index: {candle_index}"
+            
+            # Ensure we have a DataFrame to work with
+            if self.current_dataframe is None:
+                return "Error: No data available"
+            
+            df = self.current_dataframe
+            
+            # Check bounds
+            if candle_index >= len(df):
+                return f"Error: Candle index {candle_index} out of range"
+            
+            # Get OHLC values for this candle
+            candle_data = df.iloc[candle_index]
+            open_price = candle_data['Open']
+            high_price = candle_data['High']
+            low_price = candle_data['Low']
+            close_price = candle_data['Close']
+            
+            return f"open:{open_price:.1f},high:{high_price:.1f},low:{low_price:.1f},close:{close_price:.1f}"
+            
+        except Exception as e:
+            return f"Error getting OHLC values: {str(e)}"
