@@ -68,8 +68,10 @@ A user, while working in a Python script, will place their cursor on a pandas Da
 │   └── test_dataframe.py # Manual testing file for the plugin
 ├── lua/
 │   └── vimtrader/
-│       ├── init.lua  # Neovim plugin entrypoint
+│       ├── init.lua  # (Now empty, or can be removed if not needed for other requires)
 │       └── main.lua    # Main plugin logic in Lua
+├── plugin/
+│   └── vimtrader.lua # Neovim plugin entrypoint for automatic sourcing
 ├── python/
 │   └── vimtrader/
 │       ├── __init__.py
