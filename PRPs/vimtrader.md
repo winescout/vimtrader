@@ -25,8 +25,8 @@ To create a Neovim plugin that allows a user to visually edit a pandas DataFrame
 A user, while working in a Python script, will place their cursor on a pandas DataFrame variable containing OHLCV data. By running a Vim command, a new window will open, displaying an ASCII representation of the data. The user can then navigate and modify the chart using key commands, and the underlying DataFrame in the original Python script will be updated in real-time.
 
 ### Success Criteria
-- [ ] A user can invoke the plugin on a pandas DataFrame, opening a new edit window.
-- [ ] The edit window displays a properly scaled ASCII candlestick chart.
+- [x] A user can invoke the plugin on a pandas DataFrame, opening a new edit window.
+- [x] The edit window displays a properly scaled ASCII candlestick chart.
 - [ ] The user can navigate between bars (left/right) and select parts of a bar (up/down).
 - [ ] Key commands are implemented for:
     - [ ] Growing/shrinking the upper wick.
@@ -35,6 +35,7 @@ A user, while working in a Python script, will place their cursor on a pandas Da
     - [ ] Moving the entire candle up/down.
     - [ ] Adding a new bullish/bearish candle to the left/right.
 - [ ] Changes made in the ASCII chart are reflected back into the original pandas DataFrame.
+- [ ] Interactive editing supports configurable resolution/precision for value adjustments.
 
 ## All Needed Context
 
@@ -126,48 +127,92 @@ Task 4: Create the Neovim plugin:
   - IMPLEMENT the logic to display the chart in a new window.
 
 Task 5: Write unit tests:
-  - CREATE tests for the `chart.py` module.
-  - CREATE tests for the `editor.py` module.
+  - [x] CREATE tests for the `chart.py` module.
+  - [x] CREATE tests for the `editor.py` module.
+
+Task 6: Implement interactive editing capabilities:
+  - [ ] ADD cursor positioning and navigation (left/right between candles, up/down within candles)
+  - [ ] IMPLEMENT configurable resolution system for price adjustments
+  - [ ] ADD key bindings for candle manipulation (wick adjustment, body resizing, moving candles)
+  - [ ] IMPLEMENT real-time DataFrame synchronization
 ```
 
 
 ### Per task pseudocode as needed added to each task
 ```python
 
-# Task 1
-# Pseudocode with CRITICAL details dont write entire code
-async def new_feature(param: str) -> Result:
-    # PATTERN: Always validate input first (see src/validators.py)
-    validated = validate_input(param)  # raises ValidationError
+# Task 6: Interactive editing resolution system
+class EditingResolution:
+    def __init__(self, base_resolution=0.25):
+        self.base_resolution = base_resolution  # Minimum price increment
+        self.adaptive_mode = True  # Auto-adjust based on price range
     
-    # GOTCHA: This library requires connection pooling
-    async with get_connection() as conn:  # see src/db/pool.py
-        # PATTERN: Use existing retry decorator
-        @retry(attempts=3, backoff=exponential)
-        async def _inner():
-            # CRITICAL: API returns 429 if >10 req/sec
-            await rate_limiter.acquire()
-            return await external_api.call(validated)
-        
-        result = await _inner()
+    def calculate_resolution(self, price_range):
+        # PATTERN: Adaptive resolution based on price range
+        if self.adaptive_mode:
+            if price_range < 10:
+                return 0.25  # Fine resolution for small ranges
+            elif price_range < 100:
+                return 1.0   # Medium resolution
+            else:
+                return 10.0  # Coarse resolution for large ranges
+        return self.base_resolution
     
-    # PATTERN: Standardized response format
-    return format_response(result)  # see src/utils/responses.py
+    def snap_to_grid(self, price, resolution):
+        # CRITICAL: Snap prices to resolution grid
+        return round(price / resolution) * resolution
+
+# Cursor-to-price mapping
+def cursor_to_price(cursor_row, chart_height, min_price, max_price):
+    # PATTERN: Inverse of price_to_row function in chart.py
+    normalized_position = (chart_height - 1 - cursor_row) / (chart_height - 1)
+    return min_price + normalized_position * (max_price - min_price)
+
+# Edit granularity controls
+EDIT_MODES = {
+    'fine': 0.25,     # For precise adjustments
+    'normal': 1.0,    # Standard editing
+    'coarse': 10.0,   # Quick large adjustments
+    'adaptive': None  # Auto-adjust based on price range
+}
+
+# Key bindings for candle manipulation
+KEY_BINDINGS = {
+    'h': 'move_left',         # Navigate to previous candle
+    'l': 'move_right',        # Navigate to next candle
+    'k': 'move_up',           # Move cursor up (higher price)
+    'j': 'move_down',         # Move cursor down (lower price)
+    'H': 'extend_high',       # Extend upper wick
+    'L': 'extend_low',        # Extend lower wick
+    'O': 'adjust_open',       # Adjust open price
+    'C': 'adjust_close',      # Adjust close price
+    '+': 'increase_resolution', # Increase edit precision
+    '-': 'decrease_resolution'  # Decrease edit precision
+}
 ```
 
 ### Integration Points
 ```yaml
-DATABASE:
-  - migration: "Add column 'feature_enabled' to users table"
-  - index: "CREATE INDEX idx_feature_lookup ON users(feature_id)"
+NEOVIM_CONFIG:
+  - add to: init.vim or init.lua
+  - pattern: "let g:python3_host_prog = '/path/to/python'"
+  - note: "Required for pynvim communication"
   
-CONFIG:
-  - add to: config/settings.py
-  - pattern: "FEATURE_TIMEOUT = int(os.getenv('FEATURE_TIMEOUT', '30'))"
+PYTHON_ENVIRONMENT:
+  - dependencies: "pandas, pynvim"
+  - pattern: "pip install pandas pynvim"
+  - note: "Must be in same environment as g:python3_host_prog"
   
-ROUTES:
-  - add to: src/api/routes.py  
-  - pattern: "router.include_router(feature_router, prefix='/feature')"
+PLUGIN_REGISTRATION:
+  - command: ":UpdateRemotePlugins"
+  - pattern: "Run after installing/updating Python plugin code"
+  - note: "Required for Neovim to recognize new remote plugin functions"
+
+CHART_RESOLUTION:
+  - configuration: "User-configurable resolution settings"
+  - adaptive_mode: "Auto-adjust precision based on price range"
+  - manual_modes: "Fine (0.25), Normal (1.0), Coarse (10.0)"
+  - real_time_sync: "Immediate DataFrame updates on chart modifications"
 ```
 
 ## Validation Loop
