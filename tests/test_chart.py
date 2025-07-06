@@ -38,8 +38,8 @@ def test_render_chart_single_bullish_candle():
     df = pd.DataFrame(data)
     result = render_chart(df)
     # Basic check for expected characters and structure
-    assert '█' in result  # Bullish body
-    assert '│' in result  # Wick
+    assert '^' in result  # Bullish body (chevron up)
+    assert '|' in result  # Wick (pipe)
     assert '\n' in result # Multiple lines for chart height
     # Further detailed checks would involve parsing the ASCII output or comparing to a known good string
 
@@ -56,8 +56,8 @@ def test_render_chart_single_bearish_candle():
     }
     df = pd.DataFrame(data)
     result = render_chart(df)
-    assert '▄' in result  # Bearish body
-    assert '│' in result  # Wick
+    assert 'v' in result  # Bearish body (chevron down)
+    assert '|' in result  # Wick (pipe)
     assert '\n' in result
 
 def test_render_chart_multiple_candles():
@@ -73,7 +73,7 @@ def test_render_chart_multiple_candles():
     }
     df = pd.DataFrame(data)
     result = render_chart(df)
-    assert '█' in result
-    assert '▄' in result
-    assert '│' in result
+    assert '^' in result  # Bullish body (chevron up)
+    assert 'v' in result  # Bearish body (chevron down)
+    assert '|' in result  # Wick (pipe)
     # More advanced checks would verify the relative positions of candles

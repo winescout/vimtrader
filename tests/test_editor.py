@@ -1,5 +1,6 @@
 import pandas as pd
-from vimtrader.editor import handle_input_and_modify_dataframe
+from unittest.mock import Mock
+from vimtrader.editor import VimtraderEditor
 
 def test_handle_input_no_change():
     """
@@ -14,7 +15,12 @@ def test_handle_input_no_change():
     }
     df = pd.DataFrame(data)
     original_df = df.copy()
-    modified_df = handle_input_and_modify_dataframe(df, "no_op")
+    
+    # Create a mock nvim object since the editor class requires it
+    mock_nvim = Mock()
+    editor = VimtraderEditor(mock_nvim)
+    
+    modified_df = editor.handle_input_and_modify_dataframe(df, "no_op")
     pd.testing.assert_frame_equal(original_df, modified_df)
 
 # Add more tests as editor logic is implemented
