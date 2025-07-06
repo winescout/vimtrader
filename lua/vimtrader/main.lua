@@ -8,6 +8,7 @@ function M.open_chart(df_variable_name)
 
   local buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_option(buf, 'bufhidden', 'wipe')
+  vim.api.nvim_buf_set_option(buf, 'filetype', 'vimtrader')
 
   -- Make an RPC call to the Python backend to get chart string
   -- Use vim.fn.VimtraderGetSampleChart for now (will be replaced with real DataFrame data)
@@ -24,6 +25,9 @@ function M.open_chart(df_variable_name)
 
   -- Set the buffer content with the received chart string
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.split(chart_string, '\n'))
+  
+  -- Set up syntax highlighting for chart elements
+  M.setup_chart_highlighting(buf)
 
   local win = vim.api.nvim_open_win(buf, true, {
     relative = 'editor',
@@ -46,13 +50,22 @@ function M.open_chart(df_variable_name)
   end
   
   setup_keybindings()
+  
+  -- Add a test: manually color the first few characters to verify highlighting works
+  vim.schedule(function()
+    local test_ns = vim.api.nvim_create_namespace('test_highlights')
+    vim.api.nvim_buf_add_highlight(buf, test_ns, 'VimtraderBullish', 0, 0, 5)  -- First 5 chars green
+    vim.api.nvim_buf_add_highlight(buf, test_ns, 'VimtraderBearish', 1, 0, 5)  -- Second line first 5 chars red
+  end)
 end
 
 function M.refresh_chart()
   -- Refresh the current chart
   local ok, chart_string = pcall(vim.fn.VimtraderGetSampleChart)
   if ok and type(chart_string) == "string" then
-    vim.api.nvim_buf_set_lines(0, 0, -1, false, vim.split(chart_string, '\n'))
+    local buf = vim.api.nvim_get_current_buf()
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.split(chart_string, '\n'))
+    M.setup_chart_highlighting(buf)  -- Re-apply highlighting after refresh
   else
     local error_msg = "Error refreshing chart: " .. tostring(chart_string)
     if type(chart_string) ~= "string" then
@@ -92,6 +105,85 @@ function M.test_plugin()
   end
   
   vim.notify("Plugin Function Test Results:\n" .. table.concat(results, "\n"), vim.log.levels.INFO)
+end
+
+function M.setup_chart_highlighting(buf)
+  -- Clear any syntax highlighting to show plain ASCII
+  vim.api.nvim_buf_call(buf, function()
+    vim.cmd('syntax clear')
+  end)
+end
+
+-- Remove the complex highlighting function since we're using syntax highlighting now
+
+function M.apply_alternating_colors(buf)
+  -- Apply colors based on actual candle types from Python
+  if not vim.api.nvim_buf_is_valid(buf) then
+    return
+  end
+  
+  -- Create a dedicated namespace for our highlights
+  local ns_id = vim.api.nvim_create_namespace('vimtrader_highlights')
+  
+  -- Clear existing highlights in our namespace
+  vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
+  
+  -- Get candle type information from Python
+  local ok, candle_types_str = pcall(vim.fn.VimtraderGetCandleTypes)
+  
+  if not ok or type(candle_types_str) ~= "string" then
+    -- Fallback to simple alternating colors
+    M.apply_simple_alternating_colors_with_namespace(buf, ns_id)
+    return
+  end
+  
+  -- Parse candle types (B for bullish, R for bearish)
+  local candle_types = {}
+  for candle_type in string.gmatch(candle_types_str, "[^,]+") do
+    table.insert(candle_types, string.upper(string.gsub(candle_type, "%s", "")))  -- Clean whitespace and uppercase
+  end
+  
+  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  
+  -- Color each candle as a complete unit
+  for candle_idx, candle_type in ipairs(candle_types) do
+    local highlight_group = nil
+    if candle_type == 'B' then
+      highlight_group = 'VimtraderBullish'
+    elseif candle_type == 'R' then
+      highlight_group = 'VimtraderBearish'
+    end
+    
+    if highlight_group then
+      -- Calculate the column range for this candle (3 chars wide, centered at pos 1)
+      local candle_center_col = (candle_idx - 1) * 3 + 1  -- Center column (where █ should be)
+      
+      -- Apply color to all █ characters in this candle's column
+      for line_num, line in ipairs(lines) do
+        if #line > candle_center_col and string.sub(line, candle_center_col + 1, candle_center_col + 1) == '█' then
+          vim.api.nvim_buf_add_highlight(buf, ns_id, highlight_group, line_num - 1, candle_center_col, candle_center_col + 1)
+        end
+      end
+    end
+  end
+end
+
+function M.apply_simple_alternating_colors_with_namespace(buf, ns_id)
+  -- Simple fallback: color candles by column in alternating pattern
+  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  
+  -- Color each candle column separately
+  for candle_idx = 0, 9 do  -- Assume max 10 candles
+    local candle_center_col = candle_idx * 3 + 1  -- Center column for this candle
+    local highlight_group = candle_idx % 2 == 0 and 'VimtraderBullish' or 'VimtraderBearish'
+    
+    -- Apply color to all █ characters in this candle's column
+    for line_num, line in ipairs(lines) do
+      if #line > candle_center_col and string.sub(line, candle_center_col + 1, candle_center_col + 1) == '█' then
+        vim.api.nvim_buf_add_highlight(buf, ns_id, highlight_group, line_num - 1, candle_center_col, candle_center_col + 1)
+      end
+    end
+  end
 end
 
 return M

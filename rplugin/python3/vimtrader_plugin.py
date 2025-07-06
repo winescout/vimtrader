@@ -40,7 +40,7 @@ class VimTraderPlugin:
         Returns:
             str: A simple test string to verify RPC is working.
         """
-        return "Hello from VimTrader Python!"
+        return "VimTrader Python backend is working!\n\nTest ASCII Chart:\n│ │ │\n█ ▄ █\n│ │ │"
     
     @pynvim.function('VimtraderTest', sync=True)
     def test_simple(self, args):
@@ -91,29 +91,50 @@ class VimTraderPlugin:
             # First try to import and use the render_chart function
             from vimtrader.chart import render_chart
             
-            # Create sample OHLCV data
+            # Create sample OHLCV data with mixed bullish/bearish candles
             sample_data = {
-                'Open': [100, 105, 110, 108, 112],
-                'High': [108, 112, 115, 110, 118],
-                'Low': [98, 103, 107, 105, 109],
-                'Close': [105, 110, 108, 112, 115],
-                'Volume': [1000, 1200, 900, 1500, 1100]
+                'Open': [100, 105, 110, 108, 112, 115, 113, 118, 120, 117],
+                'High': [108, 112, 115, 110, 118, 120, 116, 122, 125, 121],
+                'Low': [98, 103, 107, 105, 109, 113, 111, 116, 118, 115],
+                'Close': [105, 110, 108, 112, 115, 113, 118, 120, 117, 119],
+                'Volume': [1000, 1200, 900, 1500, 1100, 1300, 1000, 1600, 1400, 1200]
             }
             
             df = pd.DataFrame(sample_data)
             chart_string = render_chart(df)
             
-            # Replace special Unicode characters with basic ASCII
-            chart_string = chart_string.replace('█', '#')
-            chart_string = chart_string.replace('▄', '=')
-            chart_string = chart_string.replace('│', '|')
+            # Store candle type info for the Lua highlighting to use
+            self.current_dataframe = df
             
+            # Return the chart - colors will be applied by Lua highlighting
             return chart_string
             
         except ImportError as e:
             return f"Error importing chart module: {str(e)}"
         except Exception as e:
             return f"Error generating sample chart: {str(e)}"
+    
+    @pynvim.function('VimtraderGetCandleTypes', sync=True)
+    def get_candle_types(self, args):
+        """
+        Get bullish/bearish info for each candle.
+        
+        Returns:
+            str: Comma-separated list of 'B' for bullish, 'R' for bearish
+        """
+        if self.current_dataframe is None:
+            return "B,B,B,B,B"  # Default fallback
+        
+        try:
+            candle_types = []
+            for _, row in self.current_dataframe.iterrows():
+                is_bullish = row['Close'] >= row['Open']
+                candle_types.append('B' if is_bullish else 'R')
+            
+            return ','.join(candle_types)
+            
+        except Exception as e:
+            return "B,B,B,B,B"  # Fallback on error
     
     @pynvim.function('VimtraderGetPythonInfo', sync=True)
     def get_python_info(self, args):

@@ -19,9 +19,9 @@ def render_chart(df: pd.DataFrame) -> str:
     candle_width = 3   # Number of columns per candle (e.g., |█|)
 
     # ASCII characters for rendering
-    BULLISH_BODY = '█'
-    BEARISH_BODY = '▄'
-    WICK = '│'
+    BULLISH_BODY = '^'   # Chevron up for bullish candles
+    BEARISH_BODY = 'v'   # Chevron down for bearish candles
+    WICK = '|'           # Regular pipe for wicks
     EMPTY = ' '
 
     # Calculate min and max prices for scaling
