@@ -33,6 +33,7 @@ This project will proceed in two distinct phases:
 
 ### ✅ Task Completion
 - **After completing a task and ensuring all tests pass, perform a git commit.**
+- **Use single-line git commit messages.**
 - **Mark completed tasks** immediately after finishing them.
 - Add new sub-tasks or TODOs discovered during development.
 

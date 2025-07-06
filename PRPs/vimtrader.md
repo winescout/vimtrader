@@ -116,8 +116,8 @@ Task 2: Implement the chart rendering:
   - [x] IMPLEMENT the logic to take a pandas DataFrame and render it as an ASCII chart.
 
 Task 3: Implement the editor:
-  - CREATE the `editor.py` module.
-  - IMPLEMENT the logic to handle user input and modify the DataFrame.
+  - [x] CREATE the `editor.py` module.
+  - [x] IMPLEMENT the logic to handle user input and modify the DataFrame.
 
 Task 4: Create the Neovim plugin:
   - CREATE the Lua code to connect to the Python backend.
