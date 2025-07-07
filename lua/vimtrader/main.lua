@@ -223,9 +223,9 @@ function M.setup_theme_aware_colors()
     wick_color = bg == 'dark' and '#ffffff' or '#000000'
   end
   
-  -- Define our custom highlight groups with solid blocks (fg=bg for solid effect)
-  vim.cmd(string.format('highlight VimtraderBullish guifg=%s guibg=%s ctermfg=green ctermbg=green', bull_color, bull_color))
-  vim.cmd(string.format('highlight VimtraderBearish guifg=%s guibg=%s ctermfg=red ctermbg=red', bear_color, bear_color))
+  -- Define our custom highlight groups WITHOUT solid blocks (testing if this fixes stray colors)
+  vim.cmd(string.format('highlight VimtraderBullish guifg=%s ctermfg=green', bull_color))
+  vim.cmd(string.format('highlight VimtraderBearish guifg=%s ctermfg=red', bear_color))
   vim.cmd(string.format('highlight VimtraderWick guifg=%s', wick_color))
   
   -- Use theme colors for other elements
@@ -461,8 +461,10 @@ function M.apply_alternating_colors(buf)
   local chart_height = 10  -- Chart is 10 lines tall
   local max_chart_lines = math.min(chart_height + 2, #lines - 3)  -- Skip last 3 lines (help text)
   
+  
   for candle_idx = 1, 10 do  -- Assume 10 candles max
     local candle_center_col = (candle_idx - 1) * 3 + 1
+    
     
     -- Only scan chart area lines, not help text
     for line_num = 1, max_chart_lines do
