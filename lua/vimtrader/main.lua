@@ -73,6 +73,9 @@ function M.open_chart(df_variable_name)
   
   -- Set up syntax highlighting for chart elements
   M.setup_chart_highlighting(buf)
+  
+  -- Apply colors to candle characters
+  M.apply_alternating_colors(buf)
 
   local win = vim.api.nvim_open_win(buf, true, {
     relative = 'editor',
@@ -155,6 +158,7 @@ function M.refresh_chart()
     
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, chart_lines)
     M.setup_chart_highlighting(buf)  -- Re-apply highlighting after refresh
+    M.apply_alternating_colors(buf)  -- Re-apply candle colors
     M.update_cursor_position(buf)    -- Re-apply cursor position and OHLC legend
   else
     local error_msg = "Error refreshing chart: " .. tostring(chart_string)
@@ -219,9 +223,9 @@ function M.setup_theme_aware_colors()
     wick_color = bg == 'dark' and '#ffffff' or '#000000'
   end
   
-  -- Define our custom highlight groups
-  vim.cmd(string.format('highlight VimtraderBullish guifg=%s ctermfg=green', bull_color))
-  vim.cmd(string.format('highlight VimtraderBearish guifg=%s ctermfg=red', bear_color))
+  -- Define our custom highlight groups with solid blocks (fg=bg for solid effect)
+  vim.cmd(string.format('highlight VimtraderBullish guifg=%s guibg=%s ctermfg=green ctermbg=green', bull_color, bull_color))
+  vim.cmd(string.format('highlight VimtraderBearish guifg=%s guibg=%s ctermfg=red ctermbg=red', bear_color, bear_color))
   vim.cmd(string.format('highlight VimtraderWick guifg=%s', wick_color))
   
   -- Use theme colors for other elements
@@ -403,6 +407,7 @@ function M.adjust_candle_value(value_type, direction)
     
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, chart_lines)
     M.setup_chart_highlighting(buf)
+    M.apply_alternating_colors(buf)  -- Apply candle colors
     M.update_cursor_position(buf)  -- Maintain cursor position and update legend after update
   else
     local error_msg = "Error adjusting candle: " .. tostring(result)
@@ -448,25 +453,27 @@ function M.apply_alternating_colors(buf)
     table.insert(candle_types, string.upper(string.gsub(candle_type, "%s", "")))  -- Clean whitespace and uppercase
   end
   
+  
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   
-  -- Color each candle as a complete unit
-  for candle_idx, candle_type in ipairs(candle_types) do
-    local highlight_group = nil
-    if candle_type == 'B' then
-      highlight_group = 'VimtraderBullish'
-    elseif candle_type == 'R' then
-      highlight_group = 'VimtraderBearish'
-    end
+  -- Color candles based on what characters are actually present (ignore Python types)
+  -- Only scan the chart area (first 10-12 lines), skip help text at bottom
+  local chart_height = 10  -- Chart is 10 lines tall
+  local max_chart_lines = math.min(chart_height + 2, #lines - 3)  -- Skip last 3 lines (help text)
+  
+  for candle_idx = 1, 10 do  -- Assume 10 candles max
+    local candle_center_col = (candle_idx - 1) * 3 + 1
     
-    if highlight_group then
-      -- Calculate the column range for this candle (3 chars wide, centered at pos 1)
-      local candle_center_col = (candle_idx - 1) * 3 + 1  -- Center column (where █ should be)
-      
-      -- Apply color to all █ characters in this candle's column
-      for line_num, line in ipairs(lines) do
-        if #line > candle_center_col and string.sub(line, candle_center_col + 1, candle_center_col + 1) == '█' then
-          vim.api.nvim_buf_add_highlight(buf, ns_id, highlight_group, line_num - 1, candle_center_col, candle_center_col + 1)
+    -- Only scan chart area lines, not help text
+    for line_num = 1, max_chart_lines do
+      if lines[line_num] and #lines[line_num] > candle_center_col then
+        local char_at_pos = string.sub(lines[line_num], candle_center_col + 1, candle_center_col + 1)
+        
+        -- Color based on actual character, not Python's classification
+        if char_at_pos == '^' then
+          vim.api.nvim_buf_add_highlight(buf, ns_id, 'VimtraderBullish', line_num - 1, candle_center_col, candle_center_col + 1)
+        elseif char_at_pos == 'v' then
+          vim.api.nvim_buf_add_highlight(buf, ns_id, 'VimtraderBearish', line_num - 1, candle_center_col, candle_center_col + 1)
         end
       end
     end
