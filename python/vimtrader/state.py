@@ -329,7 +329,11 @@ def update_buffer_with_dataframe(buffer_content: str, variable_name: str,
 def apply_candle_adjustment(df: pd.DataFrame, candle_index: int, 
                           value_type: str, direction: int) -> Tuple[pd.DataFrame, Optional[str]]:
     """
-    Pure function to apply a candle adjustment to a DataFrame.
+    Pure function to apply a candle adjustment to a DataFrame with intelligent constraint handling.
+    
+    Logic: When Open/Close change, High/Low automatically adjust to maintain valid OHLC:
+    - high = max(open, close) if max(open, close) > high else high  
+    - low = min(open, close) if min(open, close) < low else low
     
     Args:
         df: Original DataFrame
@@ -347,7 +351,7 @@ def apply_candle_adjustment(df: pd.DataFrame, candle_index: int,
     if value_type not in ['high', 'low', 'open', 'close']:
         return df, f"Invalid value type: {value_type}"
     
-    if direction not in [1, -1]:
+    if not isinstance(direction, (int, float)):
         return df, f"Invalid direction: {direction}"
     
     # Create immutable copy
@@ -359,20 +363,23 @@ def apply_candle_adjustment(df: pd.DataFrame, candle_index: int,
     current_value = new_df.iloc[candle_index][column_name]
     new_value = current_value + adjustment
     
-    # Apply OHLC constraints
-    if value_type == 'high':
-        min_high = max(new_df.iloc[candle_index]['Open'], 
-                      new_df.iloc[candle_index]['Close'], 
-                      new_df.iloc[candle_index]['Low'])
-        new_value = max(new_value, min_high)
-    elif value_type == 'low':
-        max_low = min(new_df.iloc[candle_index]['Open'], 
-                     new_df.iloc[candle_index]['Close'], 
-                     new_df.iloc[candle_index]['High'])
-        new_value = min(new_value, max_low)
-    
-    # Update value
+    # Update the primary value
     new_df.iloc[candle_index, new_df.columns.get_loc(column_name)] = new_value
+    
+    # Get updated OHLC values after the adjustment
+    candle_open = new_df.iloc[candle_index]['Open']
+    candle_close = new_df.iloc[candle_index]['Close']
+    candle_high = new_df.iloc[candle_index]['High']
+    candle_low = new_df.iloc[candle_index]['Low']
+    
+    # Apply intelligent constraint logic
+    # High should be at least max(open, close)
+    new_high = max(candle_open, candle_close) if max(candle_open, candle_close) > candle_high else candle_high
+    new_df.iloc[candle_index, new_df.columns.get_loc('High')] = new_high
+    
+    # Low should be at most min(open, close)  
+    new_low = min(candle_open, candle_close) if min(candle_open, candle_close) < candle_low else candle_low
+    new_df.iloc[candle_index, new_df.columns.get_loc('Low')] = new_low
     
     return new_df, None
 

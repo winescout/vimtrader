@@ -137,11 +137,93 @@ Task 6: Implement functional state management:
   - [x] IMPLEMENT command pattern for editor actions
   - [x] ADD buffer update functions that maintain data integrity
   - [x] INTEGRATE functional state management with existing Neovim plugin
+
+Task 7: Implement intelligent OHLC constraint handling:
+  - [x] DESIGN smart constraint logic for Open/Close reaching High/Low boundaries
+  - [x] IMPLEMENT automatic High/Low extension when Open/Close values exceed bounds
+  - [x] CREATE comprehensive unit tests for all OHLC constraint scenarios
+  - [x] UPDATE apply_candle_adjustment function with intelligent constraint handling
+  - [x] VALIDATE constraint logic maintains proper OHLC relationships
 ```
 
 
 ### Per task pseudocode as needed added to each task
 ```python
+
+# Task 7: Intelligent OHLC Constraint Handling
+def apply_intelligent_ohlc_constraints(ohlc_values, adjustment_type, new_value):
+    """
+    PATTERN: Intelligent constraint handling for OHLC relationships
+    
+    Rules:
+    1. When Open reaches High -> extend High to match Open
+    2. When Open reaches Low -> extend Low to match Open  
+    3. When Close reaches High -> extend High to match Close
+    4. When Close reaches Low -> extend Low to match Close
+    5. High must always be >= max(Open, Close, Low)
+    6. Low must always be <= min(Open, Close, High)
+    """
+    open_val, high_val, low_val, close_val = ohlc_values
+    
+    if adjustment_type == 'open':
+        if new_value >= high_val:
+            # Open reaches/exceeds High -> extend High
+            return (new_value, new_value, low_val, close_val)
+        elif new_value <= low_val:
+            # Open reaches/goes below Low -> extend Low
+            return (new_value, high_val, new_value, close_val)
+        else:
+            # Normal adjustment
+            return (new_value, high_val, low_val, close_val)
+            
+    elif adjustment_type == 'close':
+        if new_value >= high_val:
+            # Close reaches/exceeds High -> extend High
+            return (open_val, new_value, low_val, new_value)
+        elif new_value <= low_val:
+            # Close reaches/goes below Low -> extend Low
+            return (open_val, high_val, new_value, new_value)
+        else:
+            # Normal adjustment
+            return (open_val, high_val, low_val, new_value)
+            
+    elif adjustment_type == 'high':
+        # High must be at least max(Open, Close, Low)
+        min_high = max(open_val, close_val, low_val)
+        adjusted_high = max(new_value, min_high)
+        return (open_val, adjusted_high, low_val, close_val)
+        
+    elif adjustment_type == 'low':
+        # Low must be at most min(Open, Close, High)
+        max_low = min(open_val, close_val, high_val)
+        adjusted_low = min(new_value, max_low)
+        return (open_val, high_val, adjusted_low, close_val)
+
+# Test scenarios for comprehensive coverage
+OHLC_TEST_SCENARIOS = [
+    # Basic valid adjustments
+    {'ohlc': (100, 110, 90, 105), 'adjust': 'open', 'direction': 1, 'expected': (101, 110, 90, 105)},
+    
+    # Open reaching High boundary
+    {'ohlc': (100, 110, 90, 105), 'adjust': 'open', 'new_val': 110, 'expected': (110, 110, 90, 105)},
+    {'ohlc': (100, 110, 90, 105), 'adjust': 'open', 'new_val': 115, 'expected': (115, 115, 90, 105)},
+    
+    # Open reaching Low boundary  
+    {'ohlc': (100, 110, 90, 105), 'adjust': 'open', 'new_val': 90, 'expected': (90, 110, 90, 105)},
+    {'ohlc': (100, 110, 90, 105), 'adjust': 'open', 'new_val': 85, 'expected': (85, 110, 85, 105)},
+    
+    # Close reaching High boundary
+    {'ohlc': (100, 110, 90, 105), 'adjust': 'close', 'new_val': 110, 'expected': (100, 110, 90, 110)},
+    {'ohlc': (100, 110, 90, 105), 'adjust': 'close', 'new_val': 115, 'expected': (100, 115, 90, 115)},
+    
+    # Close reaching Low boundary
+    {'ohlc': (100, 110, 90, 105), 'adjust': 'close', 'new_val': 90, 'expected': (100, 110, 90, 90)},
+    {'ohlc': (100, 110, 90, 105), 'adjust': 'close', 'new_val': 85, 'expected': (100, 110, 85, 85)},
+    
+    # High/Low constraint validation
+    {'ohlc': (100, 110, 90, 105), 'adjust': 'high', 'new_val': 95, 'expected': (100, 105, 90, 105)},  # High < Close
+    {'ohlc': (100, 110, 90, 105), 'adjust': 'low', 'new_val': 115, 'expected': (100, 110, 100, 105)},  # Low > Open
+]
 
 # Task 6: Interactive editing resolution system
 class EditingResolution:
