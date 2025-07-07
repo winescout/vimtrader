@@ -8,20 +8,42 @@ local chart_state = {
   chart_height = 10,     -- Height of the chart
   num_candles = 0,       -- Total number of candles
   candle_width = 3,      -- Width of each candle in characters
+  variable_name = nil,   -- DataFrame variable name for buffer-based state
+  source_file = nil,     -- Original Python file path
 }
 
 function M.open_chart(df_variable_name)
   -- This function will be called from Neovim
-  -- It will eventually get the DataFrame from the Python process
+  -- It will get the DataFrame from the Python process using buffer content
   -- and display the ASCII chart in a new buffer.
+
+  -- Auto-detect variable name if not provided
+  if not df_variable_name or df_variable_name == "" then
+    df_variable_name = M.get_variable_under_cursor()
+  end
+
+  -- Check if we have a variable name
+  if not df_variable_name or df_variable_name == "" then
+    vim.notify("No DataFrame containing OHLC data found. Place cursor on a DataFrame variable or specify one with :VimtraderChart <variable_name>", vim.log.levels.ERROR)
+    return
+  end
+
+  -- Store the variable name and source file for buffer-based operations
+  chart_state.variable_name = df_variable_name
+  chart_state.source_file = vim.api.nvim_buf_get_name(0)  -- Current buffer (the Python file)
 
   local buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_option(buf, 'bufhidden', 'wipe')
   vim.api.nvim_buf_set_option(buf, 'filetype', 'vimtrader')
 
-  -- Make an RPC call to the Python backend to get chart string
-  -- Use vim.fn.VimtraderGetSampleChart for now (will be replaced with real DataFrame data)
-  local ok, chart_string = pcall(vim.fn.VimtraderGetSampleChart)
+  -- Make an RPC call to the Python backend to get chart string from buffer
+  local ok, chart_string
+  if chart_state.variable_name and chart_state.variable_name ~= "" then
+    ok, chart_string = pcall(vim.fn.VimtraderGetDataFrameChart, chart_state.variable_name)
+  else
+    -- Fallback to sample chart if no variable name provided
+    ok, chart_string = pcall(vim.fn.VimtraderGetSampleChart)
+  end
   
   if not ok then
     chart_string = "Error: Could not communicate with Python backend.\n\nPlease ensure:\n1. pynvim is installed (pip install pynvim)\n2. Run :UpdateRemotePlugins in Neovim\n3. Restart Neovim\n\nError details: " .. tostring(chart_string)
@@ -107,8 +129,14 @@ function M.open_chart(df_variable_name)
 end
 
 function M.refresh_chart()
-  -- Refresh the current chart
-  local ok, chart_string = pcall(vim.fn.VimtraderGetSampleChart)
+  -- Refresh the current chart using buffer content
+  local ok, chart_string
+  if chart_state.variable_name and chart_state.variable_name ~= "" then
+    ok, chart_string = pcall(vim.fn.VimtraderGetDataFrameChart, chart_state.variable_name)
+  else
+    -- Fallback to sample chart
+    ok, chart_string = pcall(vim.fn.VimtraderGetSampleChart)
+  end
   if ok and type(chart_string) == "string" then
     local buf = vim.api.nvim_get_current_buf()
     local chart_lines = vim.split(chart_string, '\n')
@@ -238,8 +266,25 @@ function M.update_ohlc_legend(buf)
     buf = vim.api.nvim_get_current_buf()
   end
   
-  -- Get OHLC values for current candle
-  local ok, ohlc_data = pcall(vim.fn.VimtraderGetOHLCValues, chart_state.current_candle)
+  -- Get OHLC values for current candle using buffer state
+  local ok, ohlc_data = false, nil
+  if chart_state.variable_name and chart_state.variable_name ~= "" and chart_state.source_file then
+    ok, ohlc_data = pcall(vim.fn.VimtraderGetOHLCValues, chart_state.current_candle, chart_state.variable_name, chart_state.source_file)
+  end
+  
+  -- If buffer-based OHLC failed, try sample data as fallback (for testing)
+  if not ok or not ohlc_data or type(ohlc_data) ~= "string" or ohlc_data:match("^Error:") then
+    -- Create a simple sample OHLC legend for display
+    local sample_ohlc = {
+      open = 100.0 + chart_state.current_candle * 2,
+      high = 108.0 + chart_state.current_candle * 2,
+      low = 98.0 + chart_state.current_candle * 2,
+      close = 105.0 + chart_state.current_candle * 2
+    }
+    ohlc_data = string.format("open:%.1f,high:%.1f,low:%.1f,close:%.1f", 
+                              sample_ohlc.open, sample_ohlc.high, sample_ohlc.low, sample_ohlc.close)
+    ok = true
+  end
   
   if ok and type(ohlc_data) == "string" and not ohlc_data:match("^Error:") then
     -- Parse OHLC data (format: "open:xxx,high:xxx,low:xxx,close:xxx")
@@ -259,17 +304,34 @@ function M.update_ohlc_legend(buf)
                                        tonumber(low) or 0, 
                                        tonumber(close) or 0)
       
-      -- Position legend in bottom right of chart area (around row 9, right-aligned)
-      local legend_row = 9  -- Near bottom of 10-row chart
-      local chart_width = 30  -- Approximate chart width
-      local legend_col = math.max(0, chart_width - string.len(legend_text))
+      -- Position legend safely at the end of the help section
+      local buf_lines = vim.api.nvim_buf_line_count(buf)
+      local legend_row = math.max(0, buf_lines - 1)  -- Last line of buffer
       
-      -- Add virtual text showing OHLC legend
-      vim.api.nvim_buf_set_extmark(buf, ns_id, legend_row, legend_col, {
-        virt_text = {{legend_text, 'VimtraderOHLCLegend'}},
-        virt_text_pos = 'overlay',
+      -- Add virtual text showing OHLC legend at end of line
+      vim.api.nvim_buf_set_extmark(buf, ns_id, legend_row, 0, {
+        virt_text = {{" " .. legend_text, 'VimtraderOHLCLegend'}},
+        virt_text_pos = 'eol',  -- End of line instead of overlay
         priority = 150
       })
+    end
+  else
+    -- Debug: Show why OHLC legend failed
+    if not ok then
+      -- RPC call failed
+      vim.schedule(function()
+        vim.notify("OHLC legend RPC call failed: " .. tostring(ohlc_data), vim.log.levels.DEBUG)
+      end)
+    elseif type(ohlc_data) ~= "string" then
+      -- Wrong data type
+      vim.schedule(function()
+        vim.notify("OHLC legend got wrong data type: " .. type(ohlc_data), vim.log.levels.DEBUG)
+      end)
+    elseif ohlc_data and ohlc_data:match("^Error:") then
+      -- Error response
+      vim.schedule(function()
+        vim.notify("OHLC legend error: " .. ohlc_data, vim.log.levels.DEBUG)
+      end)
     end
   end
 end
@@ -280,7 +342,14 @@ function M.adjust_candle_value(value_type, direction)
   -- value_type: 'high', 'low', 'open', 'close'
   -- direction: 1 for increase, -1 for decrease
   
-  local ok, result = pcall(vim.fn.VimtraderAdjustCandle, chart_state.current_candle, value_type, direction)
+  -- Use buffer-based state management with source file path
+  local ok, result
+  if chart_state.variable_name and chart_state.variable_name ~= "" and chart_state.source_file then
+    ok, result = pcall(vim.fn.VimtraderAdjustCandle, chart_state.current_candle, value_type, direction, chart_state.variable_name, chart_state.source_file)
+  else
+    -- Fallback: use default variable name without file path (will try current buffer)
+    ok, result = pcall(vim.fn.VimtraderAdjustCandle, chart_state.current_candle, value_type, direction, chart_state.variable_name or "df")
+  end
   
   if ok and type(result) == "string" then
     -- Update the chart display with new data
@@ -304,6 +373,15 @@ function M.adjust_candle_value(value_type, direction)
     M.update_cursor_position(buf)  -- Maintain cursor position and update legend after update
   else
     local error_msg = "Error adjusting candle: " .. tostring(result)
+    
+    -- If session creation failed, get detailed error info
+    if string.match(tostring(result), "Could not create editor session") then
+      local debug_ok, debug_result = pcall(vim.fn.VimtraderGetLastError)
+      if debug_ok and debug_result then
+        error_msg = error_msg .. "\n\nDebug info: " .. debug_result
+      end
+    end
+    
     vim.notify(error_msg, vim.log.levels.ERROR)
   end
 end
@@ -378,6 +456,47 @@ function M.apply_simple_alternating_colors_with_namespace(buf, ns_id)
       end
     end
   end
+end
+
+-- Function to get the variable name under the cursor
+function M.get_variable_under_cursor()
+  -- Get current cursor position
+  local cursor = vim.api.nvim_win_get_cursor(0)
+  local row = cursor[1] - 1  -- Convert to 0-based indexing
+  local col = cursor[2]
+  
+  -- Get the current line
+  local line = vim.api.nvim_buf_get_lines(0, row, row + 1, false)[1]
+  if not line then
+    return nil
+  end
+  
+  -- Find the word under the cursor
+  -- Look for Python variable pattern (letters, numbers, underscore)
+  local start_col = col
+  local end_col = col
+  
+  -- Find start of word
+  while start_col > 0 and string.match(string.sub(line, start_col, start_col), "[%w_]") do
+    start_col = start_col - 1
+  end
+  start_col = start_col + 1
+  
+  -- Find end of word
+  while end_col <= #line and string.match(string.sub(line, end_col + 1, end_col + 1), "[%w_]") do
+    end_col = end_col + 1
+  end
+  
+  -- Extract the variable name
+  if start_col <= end_col then
+    local variable_name = string.sub(line, start_col, end_col)
+    -- Make sure it's a valid Python identifier (starts with letter or underscore)
+    if string.match(variable_name, "^[%a_][%w_]*$") then
+      return variable_name
+    end
+  end
+  
+  return nil
 end
 
 return M

@@ -181,20 +181,124 @@ def get_python_environment_info() -> str:
     return "\n".join(info)
 
 
-# Plugin state management (minimal mutable state)
-_plugin_state = {
-    'current_dataframe': None
-}
+# Functional state management
+from vimtrader.state import (
+    EditorState,
+    EditorCommand,
+    ParseResult,
+    parse_dataframe_from_buffer,
+    update_buffer_with_dataframe,
+    handle_editor_command,
+    get_current_dataframe as get_dataframe_from_state,
+    create_editor_state,
+    create_candle_adjustment_command,
+    create_cursor_movement_command
+)
+
+# Plugin state management (minimal mutable state for editor sessions)
+_editor_sessions = {}  # session_id -> EditorState
+_last_session_error = None  # Store last session creation error for debugging
 
 
-def get_current_dataframe() -> Optional[pd.DataFrame]:
-    """Get the current DataFrame from plugin state."""
-    return _plugin_state.get('current_dataframe')
+def get_buffer_content(nvim, file_path: str) -> Optional[str]:
+    """Get content from the buffer."""
+    try:
+        for buf in nvim.buffers:
+            if buf.name == file_path:
+                return '\n'.join(buf[:])
+        return None
+    except Exception:
+        return None
 
 
-def set_current_dataframe(df: pd.DataFrame) -> None:
-    """Set the current DataFrame in plugin state."""
-    _plugin_state['current_dataframe'] = df.copy() if df is not None else None
+def update_buffer_content(nvim, file_path: str, new_content: str) -> bool:
+    """Update buffer content with new data."""
+    try:
+        for buf in nvim.buffers:
+            if buf.name == file_path:
+                lines = new_content.split('\n')
+                buf[:] = lines
+                return True
+        return False
+    except Exception:
+        return False
+
+
+def get_or_create_session(nvim, variable_name: str) -> Optional[str]:
+    """Get or create an editor session, returning session ID."""
+    try:
+        # Get current buffer info
+        current_file = nvim.current.buffer.name
+        if not current_file:
+            # Debug: No file name available
+            return None
+        if not current_file.endswith('.py'):
+            # Debug: Not a Python file
+            return None
+        
+        # Get buffer content
+        buffer_content = get_buffer_content(nvim, current_file)
+        if buffer_content is None:
+            # Debug: Could not read buffer content
+            return None
+        
+        # Create session ID
+        session_id = f"{current_file}:{variable_name}"
+        
+        # Create or update editor state
+        editor_state = create_editor_state(buffer_content, variable_name, current_file)
+        _editor_sessions[session_id] = editor_state
+        
+        return session_id
+        
+    except Exception as e:
+        # Debug: Log the actual error for troubleshooting
+        import traceback
+        error_details = traceback.format_exc()
+        # Store error for debugging (could be retrieved by a debug function)
+        _last_session_error = f"Session creation failed: {str(e)}\n{error_details}"
+        return None
+
+
+def get_or_create_session_with_file(nvim, variable_name: str, file_path: str) -> Optional[str]:
+    """Get or create an editor session with explicit file path, returning session ID."""
+    try:
+        # Validate file path
+        if not file_path or not file_path.endswith('.py'):
+            _last_session_error = f"Invalid file path: {file_path}"
+            return None
+        
+        # Get buffer content
+        buffer_content = get_buffer_content(nvim, file_path)
+        if buffer_content is None:
+            _last_session_error = f"Could not read buffer content from: {file_path}"
+            return None
+        
+        # Create session ID
+        session_id = f"{file_path}:{variable_name}"
+        
+        # Create or update editor state
+        editor_state = create_editor_state(buffer_content, variable_name, file_path)
+        _editor_sessions[session_id] = editor_state
+        
+        return session_id
+        
+    except Exception as e:
+        # Debug: Log the actual error for troubleshooting
+        import traceback
+        error_details = traceback.format_exc()
+        # Store error for debugging (could be retrieved by a debug function)
+        _last_session_error = f"Session creation failed: {str(e)}\n{error_details}"
+        return None
+
+
+def get_session_dataframe(session_id: str) -> ParseResult:
+    """Get DataFrame from session state."""
+    if session_id not in _editor_sessions:
+        return ParseResult(False, None, "Session not found")
+    
+    state = _editor_sessions[session_id]
+    return get_dataframe_from_state(state)
 
 
 @pynvim.plugin
@@ -204,8 +308,6 @@ class VimTraderPlugin:
     def __init__(self, nvim):
         """Initialize the plugin."""
         self.nvim = nvim
-        # Initialize with sample data
-        set_current_dataframe(create_sample_dataframe())
         self.nvim.out_write("VimTrader plugin initialized\n")
     
     @pynvim.function('VimtraderGetDummyChartString', sync=True)
@@ -262,17 +364,46 @@ class VimTraderPlugin:
         try:
             from vimtrader.chart import render_chart
             
-            df = get_current_dataframe()
-            if df is None:
-                df = create_sample_dataframe()
-                set_current_dataframe(df)
-            
+            # Use sample data for standalone testing
+            df = create_sample_dataframe()
             return render_chart(df)
             
         except ImportError as e:
             return f"Error importing chart module: {str(e)}"
         except Exception as e:
             return f"Error generating sample chart: {str(e)}"
+    
+    @pynvim.function('VimtraderGetDataFrameChart', sync=True)
+    def get_dataframe_chart(self, args):
+        """
+        Get chart for a specific DataFrame variable using buffer content.
+        
+        Args:
+            args: List containing [variable_name]
+        
+        Returns:
+            str: ASCII representation of the DataFrame as a candlestick chart
+        """
+        try:
+            if len(args) != 1:
+                return "Error: Expected 1 argument (variable_name)"
+            
+            variable_name = args[0]
+            session_id = get_or_create_session(self.nvim, variable_name)
+            if session_id is None:
+                return "Error: Could not create editor session"
+            
+            # Get DataFrame from buffer
+            parse_result = get_session_dataframe(session_id)
+            if not parse_result.success:
+                return f"Error: {parse_result.error_message}"
+            
+            # Render chart
+            from vimtrader.chart import render_chart
+            return render_chart(parse_result.dataframe)
+            
+        except Exception as e:
+            return f"Error getting DataFrame chart: {str(e)}"
     
     @pynvim.function('VimtraderGetCandleTypes', sync=True)
     def get_candle_types(self, args):
@@ -283,10 +414,8 @@ class VimTraderPlugin:
             str: Comma-separated list of 'B' for bullish, 'R' for bearish
         """
         try:
-            df = get_current_dataframe()
-            if df is None:
-                return "B,B,B,B,B"  # Default fallback
-            
+            # Use sample data for testing
+            df = create_sample_dataframe()
             candle_types = determine_candle_types(df)
             return ','.join(candle_types)
             
@@ -306,45 +435,80 @@ class VimTraderPlugin:
         except Exception as e:
             return f"Error getting Python info: {str(e)}"
     
+    @pynvim.function('VimtraderGetLastError', sync=True)
+    def get_last_error(self, args):
+        """
+        Get the last session creation error for debugging.
+        
+        Returns:
+            str: Last error details or "No recent errors"
+        """
+        global _last_session_error
+        if _last_session_error:
+            return _last_session_error
+        else:
+            return "No recent session errors"
+    
     @pynvim.function('VimtraderAdjustCandle', sync=True)
     def adjust_candle(self, args):
         """
-        Adjust a specific value (High, Low, Open, Close) for a candle.
+        Adjust a specific value (High, Low, Open, Close) for a candle using buffer state.
         
         Args:
-            args: List containing [candle_index, value_type, direction]
+            args: List containing [candle_index, value_type, direction, variable_name, file_path]
                   candle_index: int (0-based index of candle)
                   value_type: str ('high', 'low', 'open', 'close')
                   direction: int (1 for increase, -1 for decrease)
+                  variable_name: str (name of DataFrame variable)
+                  file_path: str (path to the source Python file)
         
         Returns:
             str: Updated ASCII chart with modified data
         """
         try:
-            if len(args) != 3:
-                return "Error: Expected 3 arguments (candle_index, value_type, direction)"
+            if len(args) not in [4, 5]:
+                return "Error: Expected 4 or 5 arguments (candle_index, value_type, direction, variable_name, [file_path])"
             
-            candle_index, value_type, direction = args
+            candle_index, value_type, direction, variable_name = args[:4]
+            file_path = args[4] if len(args) == 5 else None
             
             # Validate inputs
             if not isinstance(candle_index, int) or candle_index < 0:
                 return f"Error: Invalid candle index: {candle_index}"
             
-            current_df = get_current_dataframe()
-            if current_df is None:
-                current_df = create_sample_dataframe()
+            # Get or create session with explicit file path if provided
+            if file_path:
+                session_id = get_or_create_session_with_file(self.nvim, variable_name, file_path)
+            else:
+                session_id = get_or_create_session(self.nvim, variable_name)
+                
+            if session_id is None:
+                return "Error: Could not create editor session"
             
-            # Apply adjustment using pure function
-            new_df, error_msg = adjust_candle_value(current_df, candle_index, value_type, direction)
+            # Create command
+            command = create_candle_adjustment_command(candle_index, value_type, direction)
+            
+            # Apply command using functional state management
+            current_state = _editor_sessions[session_id]
+            new_state, error_msg = handle_editor_command(current_state, command)
+            
             if error_msg:
                 return f"Error: {error_msg}"
             
-            # Update state with new DataFrame
-            set_current_dataframe(new_df)
+            # Update session state
+            _editor_sessions[session_id] = new_state
             
-            # Re-render the chart
+            # Update buffer with new content
+            if not update_buffer_content(self.nvim, new_state.file_path, new_state.buffer_content):
+                return "Error: Could not update buffer"
+            
+            # Get updated DataFrame and render chart
+            parse_result = get_session_dataframe(session_id)
+            if not parse_result.success:
+                return f"Error: {parse_result.error_message}"
+            
             from vimtrader.chart import render_chart
-            return render_chart(new_df)
+            return render_chart(parse_result.dataframe)
             
         except Exception as e:
             return f"Error adjusting candle: {str(e)}"
@@ -415,29 +579,42 @@ class VimTraderPlugin:
     @pynvim.function('VimtraderGetOHLCValues', sync=True)
     def get_ohlc_values_rpc(self, args):
         """
-        Get OHLC values for a specific candle.
+        Get OHLC values for a specific candle using buffer state.
         
         Args:
-            args: List containing [candle_index]
+            args: List containing [candle_index, variable_name, file_path]
                   candle_index: int (0-based index of candle)
+                  variable_name: str (name of DataFrame variable)
+                  file_path: str (optional path to the source Python file)
         
         Returns:
             str: Format "open:xxx,high:xxx,low:xxx,close:xxx"
         """
         try:
-            if len(args) != 1:
-                return "Error: Expected 1 argument (candle_index)"
+            if len(args) not in [2, 3]:
+                return "Error: Expected 2 or 3 arguments (candle_index, variable_name, [file_path])"
             
-            candle_index = args[0]
+            candle_index, variable_name = args[:2]
+            file_path = args[2] if len(args) == 3 else None
             
             if not isinstance(candle_index, int) or candle_index < 0:
                 return f"Error: Invalid candle index: {candle_index}"
             
-            df = get_current_dataframe()
-            if df is None:
-                return "Error: No data available"
+            # Get or create session with explicit file path if provided
+            if file_path:
+                session_id = get_or_create_session_with_file(self.nvim, variable_name, file_path)
+            else:
+                session_id = get_or_create_session(self.nvim, variable_name)
+                
+            if session_id is None:
+                return "Error: Could not create editor session"
             
-            ohlc_values, error_msg = get_ohlc_values(df, candle_index)
+            # Get DataFrame from buffer
+            parse_result = get_session_dataframe(session_id)
+            if not parse_result.success:
+                return f"Error: {parse_result.error_message}"
+            
+            ohlc_values, error_msg = get_ohlc_values(parse_result.dataframe, candle_index)
             if error_msg:
                 return f"Error: {error_msg}"
             

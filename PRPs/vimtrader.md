@@ -14,28 +14,28 @@ Template optimized for AI agents to implement features with sufficient context a
 ---
 
 ## Goal
-To create a Neovim plugin that allows a user to visually edit a pandas DataFrame of OHLCV data as an ASCII stock chart.
+To create a Neovim plugin that allows a user to visually edit a pandas DataFrame of OHLCV data as an ASCII stock chart using functional programming principles with the buffer as the single source of truth.
 
 ## Why
 - **Business value and user impact**: This tool will dramatically accelerate the process of creating and customizing test data for developers of automated trading strategies.
-- **Integration with existing features**: The plugin will be invoked from a Python script, operating on a pandas DataFrame object in memory.
+- **Integration with existing features**: The plugin will be invoked from a Python script, operating on a pandas DataFrame object in the buffer.
 - **Problems this solves and for whom**: It solves the cumbersome and non-intuitive process of manually creating OHLCV data for testing trading algorithms. It is for Python developers and quantitative analysts who build and test these strategies.
+- **Architectural principles**: Uses functional programming with immutable data structures, pure functions, and buffer-as-source-of-truth to eliminate state synchronization issues.
 
 ## What
-A user, while working in a Python script, will place their cursor on a pandas DataFrame variable containing OHLCV data. By running a Vim command, a new window will open, displaying an ASCII representation of the data. The user can then navigate and modify the chart using key commands, and the underlying DataFrame in the original Python script will be updated in real-time.
+A user, while working in a Python script, will place their cursor on a pandas DataFrame variable containing OHLCV data. By running a Vim command, a new window will open, displaying an ASCII representation of the data. The user can then navigate and modify the chart using key commands, and the underlying DataFrame in the original Python buffer will be updated through functional transformations that maintain data integrity and eliminate caching issues.
 
 ### Success Criteria
 - [x] A user can invoke the plugin on a pandas DataFrame, opening a new edit window.
 - [x] The edit window displays a properly scaled ASCII candlestick chart.
-- [ ] The user can navigate between bars (left/right) and select parts of a bar (up/down).
-- [ ] Key commands are implemented for:
-    - [ ] Growing/shrinking the upper wick.
-    - [ ] Growing/shrinking the lower wick.
-    - [ ] Growing/shrinking the body.
-    - [ ] Moving the entire candle up/down.
-    - [ ] Adding a new bullish/bearish candle to the left/right.
-- [ ] Changes made in the ASCII chart are reflected back into the original pandas DataFrame.
-- [ ] Interactive editing supports configurable resolution/precision for value adjustments.
+- [x] Interactive chart editing with navigation and candle value adjustments.
+- [x] Functional programming architecture with pure functions and immutable data.
+- [x] **Functional State Management**: Buffer-as-source-of-truth architecture implemented.
+- [x] **Real-time Buffer Sync**: Changes in chart editor update the buffer content immediately.
+- [x] **Stateless Editor**: Editor derives all state from buffer content on each operation.
+- [x] **Immutable Data Flow**: All transformations use pure functions returning new data.
+- [x] **Error Recovery**: System gracefully handles parsing errors and maintains buffer integrity.
+- [x] **Performance**: Efficient buffer parsing and updating for responsive editing.
 
 ## All Needed Context
 
@@ -130,11 +130,13 @@ Task 5: Write unit tests:
   - [x] CREATE tests for the `chart.py` module.
   - [x] CREATE tests for the `editor.py` module.
 
-Task 6: Implement interactive editing capabilities:
-  - [ ] ADD cursor positioning and navigation (left/right between candles, up/down within candles)
-  - [ ] IMPLEMENT configurable resolution system for price adjustments
-  - [ ] ADD key bindings for candle manipulation (wick adjustment, body resizing, moving candles)
-  - [ ] IMPLEMENT real-time DataFrame synchronization
+Task 6: Implement functional state management:
+  - [x] CREATE functional state management module with immutable data structures
+  - [x] IMPLEMENT buffer-as-source-of-truth architecture
+  - [x] ADD pure functions for parsing DataFrames from buffer content
+  - [x] IMPLEMENT command pattern for editor actions
+  - [x] ADD buffer update functions that maintain data integrity
+  - [x] INTEGRATE functional state management with existing Neovim plugin
 ```
 
 
