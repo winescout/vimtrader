@@ -110,9 +110,14 @@ def parse_dataframe_from_buffer(buffer_content: str, variable_name: str, file_pa
         except ImportError:
             pass
         
-        # Execute the buffer content safely
+        # Execute the buffer content safely, suppressing stdout
+        import io
+        import contextlib
+        
         try:
-            exec(buffer_content, exec_globals, exec_locals)
+            # Capture and suppress stdout during execution
+            with contextlib.redirect_stdout(io.StringIO()):
+                exec(buffer_content, exec_globals, exec_locals)
         except AttributeError as e:
             # Handle common datetime usage errors
             error_msg = str(e)
@@ -134,9 +139,10 @@ def parse_dataframe_from_buffer(buffer_content: str, variable_name: str, file_pa
                 custom_datetime.today = original_datetime.datetime.today
                 custom_datetime.utcnow = original_datetime.datetime.utcnow
                 
-                # Replace in globals and retry
+                # Replace in globals and retry with stdout suppression
                 exec_globals['datetime'] = custom_datetime
-                exec(buffer_content, exec_globals, exec_locals)
+                with contextlib.redirect_stdout(io.StringIO()):
+                    exec(buffer_content, exec_globals, exec_locals)
             else:
                 raise
         
