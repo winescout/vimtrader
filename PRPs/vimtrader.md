@@ -144,6 +144,36 @@ Task 7: Implement intelligent OHLC constraint handling:
   - [x] CREATE comprehensive unit tests for all OHLC constraint scenarios
   - [x] UPDATE apply_candle_adjustment function with intelligent constraint handling
   - [x] VALIDATE constraint logic maintains proper OHLC relationships
+
+Task 8: Implement theme-aware color integration:
+  - [ ] RESEARCH Neovim theme detection and color extraction methods
+  - [ ] DESIGN theme-aware color mapping for bullish/bearish candles
+  - [ ] IMPLEMENT automatic theme detection (light/dark background)
+  - [ ] CREATE semantic color linking to theme's success/error colors
+  - [ ] ADD support for popular themes (gruvbox, catppuccin, tokyonight, etc.)
+  - [ ] IMPLEMENT fallback colors for unknown themes
+  - [ ] UPDATE chart highlighting to use theme-aware colors
+  - [ ] CREATE unit tests for theme color integration
+
+Task 9: Enhance chart display with Unicode and colors:
+  - [ ] RESEARCH Unicode box-drawing characters for better chart aesthetics
+  - [ ] IMPLEMENT Unicode candlestick rendering with proper wick characters
+  - [ ] ADD color support for bullish (green) and bearish (red) candles
+  - [ ] DESIGN enhanced chart symbols (filled vs hollow candles)
+  - [ ] IMPLEMENT gradient or intensity-based coloring for volume
+  - [ ] CREATE configuration options for ASCII vs Unicode rendering
+  - [ ] UPDATE chart rendering module with Unicode support
+  - [ ] CREATE visual tests for Unicode character display
+
+Task 10: Implement bar insertion and deletion functionality:
+  - [ ] DESIGN bar insertion/deletion logic for DataFrame manipulation
+  - [ ] IMPLEMENT insert bar to the left of current position
+  - [ ] IMPLEMENT insert bar to the right of current position
+  - [ ] IMPLEMENT delete current bar functionality
+  - [ ] ADD key bindings for bar manipulation (i=insert left, a=append right, dd=delete)
+  - [ ] CREATE intelligent default values for new bars based on neighboring candles
+  - [ ] UPDATE chart rendering to handle dynamic candle count changes
+  - [ ] CREATE comprehensive unit tests for bar insertion/deletion scenarios
 ```
 
 

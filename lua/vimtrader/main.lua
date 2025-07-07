@@ -197,14 +197,47 @@ function M.test_plugin()
   vim.notify("Plugin Function Test Results:\n" .. table.concat(results, "\n"), vim.log.levels.INFO)
 end
 
+function M.setup_theme_aware_colors()
+  -- Detect light/dark theme
+  local bg = vim.o.background
+  
+  -- Set custom bull/bear colors based on theme
+  local bull_color, bear_color
+  if bg == 'dark' then
+    bull_color = '#00ff00'  -- bright green for dark themes
+    bear_color = '#ff0000'  -- bright red for dark themes
+  else
+    bull_color = '#006600'  -- dark green for light themes
+    bear_color = '#cc0000'  -- dark red for light themes
+  end
+  
+  -- Get theme's normal text color for wicks
+  local wick_color = vim.fn.synIDattr(vim.fn.hlID('Normal'), 'fg', 'gui')
+  
+  -- Fallback if we can't get the theme color
+  if wick_color == '' or wick_color == -1 then
+    wick_color = bg == 'dark' and '#ffffff' or '#000000'
+  end
+  
+  -- Define our custom highlight groups
+  vim.cmd(string.format('highlight VimtraderBullish guifg=%s ctermfg=green', bull_color))
+  vim.cmd(string.format('highlight VimtraderBearish guifg=%s ctermfg=red', bear_color))
+  vim.cmd(string.format('highlight VimtraderWick guifg=%s', wick_color))
+  
+  -- Use theme colors for other elements
+  vim.cmd('highlight link VimtraderOHLCLegend Comment')
+  vim.cmd('highlight link VimtraderHelp NonText')
+  vim.cmd('highlight link VimtraderError ErrorMsg')
+end
+
 function M.setup_chart_highlighting(buf)
   -- Clear any syntax highlighting to show plain ASCII
   vim.api.nvim_buf_call(buf, function()
     vim.cmd('syntax clear')
   end)
   
-  -- Define highlight group for OHLC legend
-  vim.cmd('highlight VimtraderOHLCLegend guifg=#00ff00 guibg=NONE ctermfg=green ctermbg=NONE')
+  -- Setup theme-aware colors
+  M.setup_theme_aware_colors()
 end
 
 -- Interactive navigation functions
